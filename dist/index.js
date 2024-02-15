@@ -30,38 +30,37 @@ module.exports = function () {
         value: function apply(compiler) {
             var _this = this;
 
-            compiler.hooks.emit.tapAsync({
-                name: 'SaveRemoteFilePlugin',
-                context: true
-            }, function (context, compilation, callback) {
-                var count = _this.options.length;
-                var downloadFiles = function downloadFiles(option) {
-                    var reportProgress = context && context.reportProgress;
-                    download(option.url).then(function (data) {
-                        var hash = crypto.createHash('md5').update(data).digest("hex");
-                        var newPath = option.hash === false ? option.filepath : _this.appendHashToPath(option.filepath, hash);
-                        compilation.assets[newPath] = {
-                            size: function size() {
-                                return data.length;
-                            },
-                            source: function source() {
-                                return data;
-                            }
+            var webpack = compiler.webpack;
+            var RawSource = webpack.sources.RawSource;
+
+            var pluginName = 'SaveRemoteFilePlugin';
+
+            compiler.hooks.thisCompilation.tap(pluginName, function (compilation) {
+                compilation.hooks.processAssets.tapPromise({ name: pluginName, stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL }, function () {
+                    return new Promise(function (resolve, reject) {
+                        var count = _this.options.length;
+                        var downloadFiles = function downloadFiles(option) {
+                            var reportProgress = compilation.reportProgress;
+                            download(option.url).then(function (data) {
+                                var hash = crypto.createHash('md5').update(data).digest("hex");
+                                var newPath = option.hash === false ? option.filepath : _this.appendHashToPath(option.filepath, hash);
+                                compilation.emitAsset(newPath, new RawSource(data));
+                                if (reportProgress) {
+                                    reportProgress(95.0, 'Remote file downloaded: ', newPath);
+                                }
+                                // Issue the calback after all files have been processed
+                                count--;
+                                if (count === 0) {
+                                    resolve();
+                                }
+                            }).catch(function (error) {
+                                compilation.errors.push(new Error(error));
+                                reject();
+                            });
                         };
-                        if (reportProgress) {
-                            reportProgress(95.0, 'Remote file downloaded: ', newPath);
-                        }
-                        // Issue the calback after all files have been processed
-                        count--;
-                        if (count === 0) {
-                            callback();
-                        }
-                    }).catch(function (error) {
-                        compilation.errors.push(new Error(error));
-                        callback();
+                        _this.options.forEach(downloadFiles);
                     });
-                };
-                _this.options.forEach(downloadFiles);
+                });
             });
         }
     }]);
