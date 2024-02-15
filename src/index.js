@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const download = require('download');
+const axios = require('axios');
 
 module.exports = class SaveRemoteFilePlugin {
     constructor(options) {
@@ -34,12 +34,12 @@ module.exports = class SaveRemoteFilePlugin {
                             let count = this.options.length;
                             const downloadFiles = (option) => {
                                 const reportProgress = compilation.reportProgress;
-                                download(option.url).then(data => {
-                                    const hash = crypto.createHash('md5').update(data).digest("hex");
+                                axios.get(option.url, { responseType: 'arraybuffer' }).then(response => {
+                                    const hash = crypto.createHash('md5').update(response.data).digest("hex");
                                     const newPath = (option.hash === false)
                                         ? option.filepath
                                         : this.appendHashToPath(option.filepath, hash);
-                                    compilation.emitAsset(newPath, new RawSource(data));
+                                    compilation.emitAsset(newPath, new RawSource(response.data));
                                     if (reportProgress) {
                                         reportProgress(95.0, 'Remote file downloaded: ', newPath);
                                     }

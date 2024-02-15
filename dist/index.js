@@ -5,7 +5,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var crypto = require('crypto');
-var download = require('download');
+var axios = require('axios');
 
 module.exports = function () {
     function SaveRemoteFilePlugin(options) {
@@ -41,10 +41,10 @@ module.exports = function () {
                         var count = _this.options.length;
                         var downloadFiles = function downloadFiles(option) {
                             var reportProgress = compilation.reportProgress;
-                            download(option.url).then(function (data) {
-                                var hash = crypto.createHash('md5').update(data).digest("hex");
+                            axios.get(option.url, { responseType: 'arraybuffer' }).then(function (response) {
+                                var hash = crypto.createHash('md5').update(response.data).digest("hex");
                                 var newPath = option.hash === false ? option.filepath : _this.appendHashToPath(option.filepath, hash);
-                                compilation.emitAsset(newPath, new RawSource(data));
+                                compilation.emitAsset(newPath, new RawSource(response.data));
                                 if (reportProgress) {
                                     reportProgress(95.0, 'Remote file downloaded: ', newPath);
                                 }
